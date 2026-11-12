@@ -3,8 +3,12 @@
 
 {% macro badge(status) %}
 {% set cls = {"一致": "b-ok", "缺记录": "b-bad", "归属不符": "b-bad", "编号不符": "b-bad",
-              "无法确认": "b-warn", "未被套件列入": "b-warn"} %}
+              "待核实": "b-warn", "无法确认": "b-warn", "未被套件列入": "b-warn"} %}
 <span class="badge {{ cls.get(status, 'b-info') }}">{{ status }}</span>
+{% endmacro %}
+
+{% macro page_links(pages) %}
+{% for p in pages %}<a href="{{ p.url }}" target="_blank">{{ p.url }}</a>{% if not loop.last %}、{% endif %}{% endfor %}
 {% endmacro %}
 
 {% block content %}
@@ -21,7 +25,7 @@
 <table>
   <tr><th style="width:120px">起始地址</th><td><a href="{{ r.start_url }}" target="_blank">{{ r.start_url }}</a></td></tr>
   <tr><th>抓取规模</th><td>列表页 {{ r.stats.list_pages }} 个 · 套件 {{ r.stats.suites }} 件 · 器件详情 {{ r.stats['items'] }} 件</td></tr>
-  <tr><th>双向核对</th><td>套件共列出 {{ r.stats.declared }} 个器件编号，其中 {{ r.stats.consistent }} 项双向一致</td></tr>
+  <tr><th>双向核对</th><td>套件共列出 {{ r.stats.declared }} 个器件编号，其中 {{ r.stats.consistent }} 项双向一致{% if r.stats.pending %}，另有 {{ r.stats.pending }} 项因编号冲突标为<b>待核实</b>、不计入一致数量{% endif %}</td></tr>
   <tr><th>报告时间</th><td>{{ r.generated_at }}（耗时 {{ "%.1f" | format(r.elapsed) }} 秒）</td></tr>
 </table>
 </div>
@@ -40,7 +44,23 @@
 </table>
 {% else %}<p class="empty">无</p>{% endif %}
 
-<h2>二、归属不符（器件与套件互指不一致）<span class="badge b-bad">{{ r.mismatches | length }}</span></h2>
+<h2>二、待核实（同一编号被多个详情页共用，归属无法按编号判定）<span class="badge b-warn">{{ r.pending | length }}</span></h2>
+{% if r.pending %}
+<table>
+  <tr><th>器件编号</th><th>列出它的套件</th><th>共用该编号的详情页来源</th><th>待核实原因</th></tr>
+  {% for p in r.pending %}
+  <tr>
+    <td><code>{{ p.accession }}</code></td>
+    <td>{{ p.suite.number }} {{ p.suite.name }}<br><a href="{{ p.suite.url }}" target="_blank" class="muted">套件页</a></td>
+    <td>{{ page_links(p.pages) }}</td>
+    <td>{{ p.reason }}</td>
+  </tr>
+  {% endfor %}
+</table>
+<p class="muted">说明：这些条目仅靠馆藏编号推断归属，结论与分页抓取顺序无关，均不计入「一致」数量；请对照右侧两页来源人工核实。若套件清单直接链接到的详情页实际编号与清单编号不符（两页可直接证明），仍在第三节按「编号不符」报告。</p>
+{% else %}<p class="empty">无</p>{% endif %}
+
+<h2>三、归属不符（器件与套件互指不一致）<span class="badge b-bad">{{ r.mismatches | length }}</span></h2>
 {% if r.mismatches %}
 <table>
   <tr><th>器件</th><th>器件标注所属</th><th>涉及套件</th><th>问题说明</th><th>来源链接</th></tr>
@@ -59,7 +79,7 @@
 </table>
 {% else %}<p class="empty">无</p>{% endif %}
 
-<h2>三、未被套件列入的器件<span class="badge b-warn">{{ r.orphans | length }}</span></h2>
+<h2>四、未被套件列入的器件<span class="badge b-warn">{{ r.orphans | length }}</span></h2>
 {% if r.orphans %}
 <table>
   <tr><th>器件编号</th><th>名称</th><th>来源链接</th></tr>
@@ -74,7 +94,7 @@
 {% else %}<p class="empty">无</p>{% endif %}
 
 {% if r.unverifiable %}
-<h2>四、无法确认（存在抓取失败，未直接判为缺记录）<span class="badge b-warn">{{ r.unverifiable | length }}</span></h2>
+<h2>五、无法确认（存在抓取失败，未直接判为缺记录）<span class="badge b-warn">{{ r.unverifiable | length }}</span></h2>
 <table>
   <tr><th>器件编号</th><th>列出它的套件</th><th>原因</th><th>相关链接</th></tr>
   {% for u in r.unverifiable %}
@@ -92,7 +112,7 @@
 {% endif %}
 
 {% if r.failures or r.notes %}
-<h2>五、抓取失败与异常<span class="badge b-warn">{{ r.failures | length }}</span></h2>
+<h2>六、抓取失败与异常<span class="badge b-warn">{{ r.failures | length }}</span></h2>
 {% for n in r.notes %}<p class="muted">⚠ {{ n }}</p>{% endfor %}
 {% if r.failures %}
 <table>
@@ -109,7 +129,7 @@
 {% endif %}
 
 {% if r.duplicates %}
-<h2>六、跨页重复引用（已去重，仅统计一次）<span class="badge b-info">{{ r.duplicates | length }}</span></h2>
+<h2>七、跨页重复引用（已去重，仅统计一次）<span class="badge b-info">{{ r.duplicates | length }}</span></h2>
 <table>
   <tr><th>详情地址</th><th>被引用次数</th><th>引用它的页面</th></tr>
   {% for d in r.duplicates %}
@@ -123,21 +143,20 @@
 {% endif %}
 
 {% if r.number_conflicts %}
-<h2>七、编号冲突（同一编号出现在不同页面）<span class="badge b-bad">{{ r.number_conflicts | length }}</span></h2>
+<h2>八、编号冲突（同一编号出现在不同页面）<span class="badge b-bad">{{ r.number_conflicts | length }}</span></h2>
 <table>
-  <tr><th>编号</th><th>类型</th><th>首次记录</th><th>冲突记录</th></tr>
+  <tr><th>编号</th><th>类型</th><th>共用该编号的全部页面来源</th></tr>
   {% for c in r.number_conflicts %}
   <tr>
     <td><code>{{ c.number }}</code></td>
     <td>{{ c.kind }}</td>
-    <td><a href="{{ c.first.url }}" target="_blank">{{ c.first.url }}</a></td>
-    <td><a href="{{ c.second.url }}" target="_blank">{{ c.second.url }}</a></td>
+    <td>{{ page_links(c.pages) }}</td>
   </tr>
   {% endfor %}
 </table>
 {% endif %}
 
-<h2>八、双向对照明细</h2>
+<h2>九、双向对照明细</h2>
 <details open>
 <summary><b>套件 → 器件</b>（套件页列出的器件编号及核对状态）</summary>
 {% for row in r.suite_rows %}
@@ -153,6 +172,9 @@
       {% if m.item %}<a href="{{ m.item.url }}" target="_blank">{{ m.item.name }}</a>
       {% elif m.link %}<a href="{{ m.link }}" target="_blank">详情地址</a>
       {% else %}（套件页未给出链接）{% endif %}
+      {% if m.conflict_pages %}
+      <br><span class="muted">编号冲突，待核实来源：{{ page_links(m.conflict_pages) }}</span>
+      {% endif %}
     </td>
   </tr>
   {% endfor %}
@@ -174,7 +196,12 @@
         {% for s in row.listed_by %}<a href="{{ s.url }}" target="_blank">{{ s.number }}</a>{% if not loop.last %}、{% endif %}{% endfor %}
       {% else %}（无）{% endif %}
     </td>
-    <td>{{ badge(row.status) }}</td>
+    <td>
+      {{ badge(row.status) }}
+      {% if row.conflict_pages %}
+      <br><span class="muted">共用编号来源：{{ page_links(row.conflict_pages) }}</span>
+      {% endif %}
+    </td>
   </tr>
   {% endfor %}
 </table>

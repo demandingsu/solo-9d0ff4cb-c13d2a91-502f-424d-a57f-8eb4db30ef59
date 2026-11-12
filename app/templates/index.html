@@ -18,6 +18,8 @@
         <span class="muted">{{ sample_entry }} —— 演示缺记录、归属不符、未列入器件与跨页重复去重</span></li>
     <li><a href="/check?url={{ sample_broken | urlencode }}">核对残缺目录</a>
         <span class="muted">{{ sample_broken }} —— 演示详情抓取失败时的「核对不完整」处理</span></li>
+    <li><a href="/check?url={{ sample_conflict | urlencode }}">核对编号冲突目录</a>
+        <span class="muted">{{ sample_conflict }} —— 两个详情页共用同一馆藏编号却标注不同套件：归属结论标为「待核实」并列出两页来源；可改从 <a href="{{ sample_entry }}conflict-2.html" target="_blank">conflict-2.html</a> 入口核对，结论与一致数量应保持不变</span></li>
   </ul>
   <p class="muted">样本站本身也可在浏览器直接打开对照：<a href="{{ sample_entry }}" target="_blank">{{ sample_entry }}</a></p>
 </div>
@@ -29,6 +31,7 @@
   <li><b>归属不符</b>：器件标注的所属套件与「列入它的套件」对不上（含所属套件未收录、套件未列入该器件、器件未注明所属套件等）。</li>
   <li><b>未被套件列入</b>：器件既未注明所属套件，也没有任何套件将其列入。</li>
   <li><b>无法确认</b>：存在抓取失败时不把未抓到的器件直接判为缺记录，单独列出并标记核对不完整。</li>
+  <li><b>待核实（编号冲突）</b>：两个器件详情共用同一馆藏编号且归属标注不一致时，按编号推断的归属一律标为待核实、列出全部冲突来源页且不计入一致数量；但若套件清单链接直达的详情页实际编号与清单编号不符（两页直接证明），仍按编号不符报告。</li>
   <li>同一详情页被多个分页重复链接时，只抓取一次、只统计一次。</li>
 </ol>
 
